@@ -1,0 +1,25 @@
+ const int dirPin = 3; //arduino pinleri
+const int stepPin = 4; // Arduino pinleri
+const int bir_turdaki_adim = 200; //Nema17 Step motorun bir tam turdaki pals sayısı
+
+void setup()
+{
+
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+}
+void loop()
+{
+  // HIGH yaparsak saat yönünde döner
+  digitalWrite(dirPin, HIGH);
+
+  // 1 turdaki adım sayısı kadar adım attırıp 360 derece döndürüyoruz
+  for(int x = 0; x < bir_turdaki_adim; x++)
+  {
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(200);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(200);
+  }
+}
+// delay(1000); // 1 saniye beklettik
