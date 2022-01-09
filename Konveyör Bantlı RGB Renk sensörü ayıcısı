@@ -1,0 +1,149 @@
+#include "Adafruit_TCS34725.h"
+#include <Wire.h>
+#include <FastLED.h>
+#include <Servo.h>
+#include <TM1638plus.h>
+#include<mwc_stepper.h>
+
+/* LED STRIP WS2812B için */ 
+#define DATA_PIN 9
+#define LED_TYPE WS2812B
+#define COLOR_ORDER GRB
+#define NUM_LEDS 5
+#define BRIGHTNESS 255
+
+/*TMS_KEYBOARD SEGMENT DISPLAY Bağlantı Tanımlamaları */
+#define  STROBE_TM 4 // strobe = GPIO connected to strobe line of module
+#define  CLOCK_TM 6  // clock = GPIO connected to clock line of module
+#define  DIO_TM 7 // data = GPIO connected to data line of module
+
+/* STEP MOTOR SURUCU için sinyal tanımlamaları */ 
+/*#define EN_PIN 13
+#define DIR_PIN 10
+#define STEP_PIN 11
+#define RPM 50
+#define RPM1 50
+#define PULSE 1600
+#define ClOCKWISE 1
+#define OTHERWISE 0
+
+MWCSTEPPER nema23(EN_PIN, DIR_PIN, STEP_PIN);*/
+
+bool high_freq = false; //default false, If using a high freq CPU > ~100 MHZ set to true. 
+ 
+// Constructor object (GPIO STB , GPIO CLOCK , GPIO DIO, use high freq MCU)
+TM1638plus tm(STROBE_TM, CLOCK_TM , DIO_TM, high_freq);
+
+Servo myservo;
+int pos = 0; 
+int Led0, led1,led2,led3,led4;
+
+CRGB leds[NUM_LEDS];
+
+
+/* Initialise with default values (int time = 2.4ms, gain = 1x) */
+/*Adafruit_TCS34725 tcs = Adafruit_TCS34725();
+ 
+/* Initialise with specific int time and gain values */
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_24MS, TCS34725_GAIN_1X);
+/*FastLED_NeoPixel<NUM_LEDS, LED_PIN, NEO_RGB> strip; */
+
+
+void setup(void) {
+ /* nema23.init();*/
+  tm.displayBegin();
+  myservo.attach(8);
+  myservo.write(pos);
+  delay(500); // initial delay of a few seconds is recommended( 1-2Saniye gecikme yapılmalı)
+  
+  
+  FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip); // initializes LED strip
+  FastLED.setBrightness(BRIGHTNESS);// global brightness
+  Serial.begin(9600);
+  
+ if (tcs.begin()) {
+    Serial.println("Found sensor");
+  } else {
+    Serial.println("No TCS34725 found ... check your connections");
+    while (1);  
+    }
+}
+
+// switches off all LEDs(Tüm ledler kapalı)
+void showProgramCleanUp(long delayTime) {
+  for (int i = 1; i < NUM_LEDS; ++i) {
+    leds[i] = CRGB::Black;
+  }
+  FastLED.show();
+  delay(delayTime);
+}
+
+void showProgramShiftSinglePixel(CRGB crgb, long delayTime, int r, int g, int b) {
+    leds[0] = CRGB(r,g,b);
+    FastLED.show();
+    delay(delayTime);
+   /* leds[i] = CRGB::Black;*/
+  }
+
+
+void doLEDs(uint8_t value) {
+  for (uint8_t LEDposition = 0; LEDposition < 8; LEDposition++) {
+    tm.setLED(LEDposition, value & 1);
+    value = value >> 1;
+  }
+}
+ 
+ 
+void loop(void) 
+{
+/*  nema23.set(ClOCKWISE, RPM, PULSE);*/
+  
+  uint16_t r, g, b, c, colorTemp, lux;
+  char workStr[11];
+ uint16_t colorSet;
+  
+  uint8_t buttons = tm.readButtons();
+  tcs.getRawData(&r, &g, &b, &c);
+    
+   if (r > 20 and b+g < 20) {
+     myservo.write(150); // tell servo to go to position for RED(Servo'nun kırmızı için pozisyona geçmesi)
+     leds[1] = CRGB(255,0,0);
+     sprintf(workStr, "RED %04d", r);
+     tm.displayText(workStr);
+     } else {
+      if (g > r+b) {
+     myservo.write (100);
+     leds[2] = CRGB(0,255,0);
+     sprintf(workStr, "GRN %04d", g);
+     tm.displayText(workStr);
+     } else {
+        if (b > r+g) {
+        myservo.write (50); 
+     leds[3] = CRGB(0,0,255);
+     sprintf(workStr, "BLU %04d", b);
+     tm.displayText(workStr);
+     } else {
+            leds[4] = CRGB(255,255,255);
+       myservo.write (0);
+       tm.reset();
+     }
+    }
+   }
+ doLEDs(buttons);
+ delay(15);                       // waits 15 ms for the servo to reach the position(Servo'nun pozisyona gelmesi için 15 ms bekliyor.)
+  
+ /* nema23.run();*/
+  
+  showProgramShiftSinglePixel(0, 15, r, g, b); // show "shift single pixel program" with maroon pixel
+  FastLED.show();
+  
+ showProgramCleanUp(25);
+
+  Serial.print("R: "); Serial.print(r, DEC); Serial.print(" ");
+  Serial.print("G: "); Serial.print(g, DEC); Serial.print(" ");
+  Serial.print("B: "); Serial.print(b, DEC); Serial.print(" ");
+  Serial.println(" ");
+
+
+   
+   }
